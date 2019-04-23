@@ -1,0 +1,104 @@
+﻿<#@ 
+assembly name="System.Data.dll" #><#@ 
+import namespace="System.Data" #><#@ 
+import namespace="System.Data.SqlClient" #><#@ 
+assembly name="System.Core.dll" #><#@ 
+import namespace="System.IO" #><#@ 
+import namespace="System.Linq" #><#@ 
+assembly name="System.Data.Entity.Design.dll" #><#@ 
+import namespace="System.Data.Entity.Design.PluralizationServices" #><#@ 
+assembly name="System.Globalization.dll" #><#@ 
+import namespace="System.Globalization" #><#@ 
+assembly name="System.Text.RegularExpressions.dll" #><#@ 
+import namespace="System.Text.RegularExpressions" #><#@ 
+assembly name="EnvDTE" #><#@ 
+include file="FileManager.ttinclude" #><#
+var manager = Manager.Create(Host, GenerationEnvironment);
+
+var hostServiceProvider = (IServiceProvider)Host;
+var dte = (EnvDTE.DTE)hostServiceProvider.GetService(typeof(EnvDTE.DTE));
+var activeSolutionProjects = (Array)dte.ActiveSolutionProjects;
+var dteProject = (EnvDTE.Project)activeSolutionProjects.GetValue(0);
+var defaultNamespace = dteProject.Properties.Item("DefaultNamespace").Value;
+
+DataTable table;
+
+foreach(string tableName in tableNames){ 
+    using (SqlConnection conn = new SqlConnection(connectionString)) {
+        conn.Open();
+
+        using (SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM " + tableName + " WHERE 0=1", conn)) {
+            table = new DataTable(tableName);
+            adapter.MissingSchemaAction = MissingSchemaAction.AddWithKey;
+            adapter.Fill(table);
+        }
+
+        conn.Close();
+    }
+    DataColumn[] primaryKeys = table.PrimaryKey;
+
+    CultureInfo cultureInfo = new System.Globalization.CultureInfo(cultureCode, false);
+    PluralizationService ps         = PluralizationService.CreateService(cultureInfo);
+
+    string[] words = Regex.Replace(tableName.Replace("_", " "), "(?<=[a-z])([A-Z])", " $1", RegexOptions.Compiled).Trim().Split(' ');
+    for (int i = 0; i < words.Length; i++)
+        if (i == words.Length-1) words[i] = cultureInfo.TextInfo.ToTitleCase(ps.Singularize(words[i]));
+        else words[i] = cultureInfo.TextInfo.ToTitleCase(words[i]);
+
+    string objectName = string.Join("", words).Replace("[", "").Replace("]", "");
+ 
+    manager.StartNewFile(objectName + ".cs"); 
+#>using System;
+using AdoCache;
+using AdoCache.Attributes;
+
+<# if(usings.Length > 0){
+    foreach(string use in usings){ #>
+using <#= use #>;
+<#  } 
+} #>
+namespace <#= defaultNamespace #>.CacheModel {
+    [TableName("<#= tableName #>")]
+    public partial class <#= objectName #> <#= baseClassName != "" ?  " : " + baseClassName : "" #> {
+	    public <#= objectName #>() : base(false) { }
+	    protected <#= objectName #>(bool isManagedByCacheEngine) : base(isManagedByCacheEngine) { }
+
+<#      foreach (DataColumn column in table.Columns) {             #>
+        [CurrentValueField("<#= column.ColumnName #>")]
+		protected <#= column.DataType #><#= (column.AllowDBNull && column.DataType.Name != "String") ? "?" : "" #> _<#= column.ColumnName #>_current;
+		[NewValueField("<#= column.ColumnName #>")]
+		protected <#= column.DataType #><#= (column.AllowDBNull && column.DataType.Name != "String") ? "?" : "" #> _<#= column.ColumnName #>_new;
+<#            if(primaryKeys.Contains(column)) {
+#>        [Key]
+<#          }
+            if(column.AutoIncrement){ 
+#>        [AutoIncrement]
+<#          }
+			if(column.ReadOnly){
+#>        [ReadOnly]
+<#			}
+
+#>        public <#= column.DataType #><#= (column.AllowDBNull && column.DataType.Name != "String") ? "?" : "" #> <#= column.ColumnName #> { 
+            get => _<#= column.ColumnName #>_current;
+            set {
+			    if (IsManagedByCacheEngine) _<#= column.ColumnName #>_new = value;
+                else _<#= column.ColumnName #>_current                     = value;
+            }
+        }
+
+<#      } #>
+		protected override void CopyNewValues() {
+<#		     foreach (DataColumn column in table.Columns) {  #>
+            _<#= column.ColumnName #>_current = _<#= column.ColumnName #>_new;
+<#			 } #>
+		}
+
+        public override void UndoPendingChanges() {
+<#		     foreach (DataColumn column in table.Columns) {  #>
+            _<#= column.ColumnName #>_new = _<#= column.ColumnName #>_current;
+<#			 } #>
+		}
+    }
+}<# manager.EndBlock();
+} 
+manager.Process(true); #>

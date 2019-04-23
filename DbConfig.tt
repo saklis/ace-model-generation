@@ -1,0 +1,25 @@
+﻿<#@ template debug="false" hostspecific="true" language="C#" #>
+<#@ output extension=".txt" #>
+
+<#
+string connectionString = new SqlConnectionStringBuilder {
+    DataSource = "server_address",
+    InitialCatalog = "database_name",
+    IntegratedSecurity = true
+    //UserID = "",
+    //Password = ""
+}.ToString();
+string[] tableNames = new[] { "tableName_1", "tableName_2", "tableName_3" };
+
+string[] usings = new string[]{};
+string baseClassName= "AdoCacheEntity";
+
+string cultureCode = "en-GB";
+
+#>
+<#@ include file="TableTemplate.ttinclude" #>
+
+Model generation completed!
+
+Connection string: <#= connectionString #>
+Tables: { <#= string.Join(", ", tableNames.Select(t => $"\"{t}\"")) #> }
