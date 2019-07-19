@@ -66,9 +66,15 @@ string baseClassName= "AdoCacheEntity";
 
 The content of this variable will be placed in class declaration just after `:` sign, so you could edit it to your liking by adding extra interfaces you want implemented. You can also remove `AdoCacheEngine` class but keep in mind that if you do the model no longer can be used with ACE ADO Cache Engine and you'll also need to do some additional modifications connected with `IsManagedByCacheEngine` variable (explained below).
 
-Last variable you can edit is `cultureCode` that is used to singularize table names.
+The `cultureCode` is used to singularize table names.
 ```c#
 string cultureCode = "en-GB";
+```
+
+Last variable you can edit is `includeJetbrainsDataAnnotation`. This will add `[NotNull]` and `[CanBeNull]` attributes to string properties to improve value analysis with tools like JetBrains ReSharper. Requires to add namespace containing those attributes to `usings`, for example `JetBrains.Annotations` if you are using JetBrains.Annotations NuGet package.
+
+```c#
+bool includeJetbrainsDataAnnotations = false;
 ```
 
 ## Tour around the generated model class.

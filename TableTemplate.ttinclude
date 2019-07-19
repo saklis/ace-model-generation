@@ -78,7 +78,14 @@ namespace <#= defaultNamespace #>.CacheModel {
 #>        [ReadOnly]
 <#			}
 
-#>        public <#= column.DataType #><#= (column.AllowDBNull && column.DataType.Name != "String") ? "?" : "" #> <#= column.ColumnName #> { 
+#>
+<#		if(includeJetbrainsDataAnnotations && column.DataType.Name == "String"){
+#>
+        <#= (column.AllowDBNull) ? "[CanBeNull]" : "[NotNull]" #>
+<#
+        }
+#>
+        public <#= column.DataType #><#= (column.AllowDBNull && column.DataType.Name != "String") ? "?" : "" #> <#= column.ColumnName #> { 
             get => _<#= column.ColumnName #>_current;
             set {
 			    if (IsManagedByCacheEngine) _<#= column.ColumnName #>_new = value;
