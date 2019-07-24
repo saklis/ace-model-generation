@@ -17,8 +17,9 @@ var manager = Manager.Create(Host, GenerationEnvironment);
 
 var hostServiceProvider = (IServiceProvider)Host;
 var dte = (EnvDTE.DTE)hostServiceProvider.GetService(typeof(EnvDTE.DTE));
-var activeSolutionProjects = (Array)dte.ActiveSolutionProjects;
-var dteProject = (EnvDTE.Project)activeSolutionProjects.GetValue(0);
+
+var item = dte.Solution.FindProjectItem(Host.TemplateFile);
+var dteProject = item.ContainingProject;
 var defaultNamespace = dteProject.Properties.Item("DefaultNamespace").Value;
 
 DataTable table;
